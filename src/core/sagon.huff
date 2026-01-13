@@ -367,23 +367,23 @@
     calldataload                             // [amounts.length, recipients.length, recipients.length]
     eq iszero return_false jumpi             // [recipients.length]
 
-    //Add the outer loop counter and prepare for looping
+    //Add the outer loop counter, dup for inner loop counter, and prepare for looping
     0x00 dup2 dup2                           // [outer_loop_count, recipients.length, outer_loop_count, recipients.length]
 
-    outer_loop_start:                        // [inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]
-        // Break loop conditional
+    outer_loop_start:                        //[outer_loop_count, recipients.length, outer_loop_count, recipients.length]
+
+        // check if the count and recipient length are equal if it is break out of the outer loop.
         eq return_true jumpi               // [outer_loop_count, recipients.length]
 
-        // Check for zero address
+        // Check if the recipient address is zero,  fi
         dup1                               // [loop_count, loop_count, recipients.length]
         0x20 mul                           // [outer_loop_count * 32, recipients.length]
-        [RECIPIENTS_OFFSET_OFFSET] calldataload 0x24 add add           // [current_address_offset, outer_loop_count, recipients.length]
+        [RECIPIENTS_POINTER_OFFSET] calldataload 0x24 add add           // [current_address_offset, outer_loop_count, recipients.length]
         calldataload                       // [outer_loop_address, outer_loop_count, recipients.length]
         dup1                               // [outer_loop_address, outer_loop_address, outer_loop_count, recipients.length]
         iszero return_false jumpi          // [outer_loop_address, outer_loop_count, recipients.length]
 
-        // Check for zero amount
-        // This is not gas efficient at all, whatever
+        // Check that the amount is not zero
         dup2                                  // [outer_loop_count, outer_loop_address, outer_loop_count, recipients.length]
         0x20 mul                              // [outer_loop_count * 32, outer_loop_address, outer_loop_count, recipients.length]
         [AMOUNTS_OFFSET_OFFSET] calldataload  // [location_of_amounts_offset (without function selector), outer_loop_count * 32, outer_loop_address, outer_loop_count, recipients.length]
@@ -420,13 +420,6 @@
                 0x01 add                       // [outer_loop_count + 1, recipients.length]
                 dup2 dup2                      // [outer_loop_count, recipients.length, outer_loop_count, recipients.length]
                 outer_loop_start jump
-            // inner_loop target end stack:// [inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]
-    // outer_loop target end stack: // [inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]
-
-
-
-
-
 
     return_true:
         // 1 is true
