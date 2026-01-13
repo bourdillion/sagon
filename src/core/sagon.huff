@@ -11,7 +11,35 @@
 /* Constants */ 
 #define constant TWENTY_EIGHT = 0x1c
 
+/* Memory Locations */
+#define constant RECIPIENT_MEMORY_LOCATION = 0x20
+#define constant AMOUNT_MEMORY_LOCATION = 0x40
+
 /* Macros */
+
+#define macro MAIN() = takes (0) returns (0) {
+    // check that there is no msg.value(ether) sent, just revert if there is
+    callvalue endcall jumpi
+
+    //Get the function signature from the calldata, occupies the first 4 bytes
+    0x00 calldataload 0xE0 shr
+
+    // Get the function signature and jump there
+    __FUNC_SIG(sendBatchToken) eq sendBatchToken jumpi
+
+    //We could have dup instead of getting it again, but this is cheaper gas wise
+    0x00 calldataload 0xE0 shr 
+    __FUNC_SIG(isListValid) eq isListsValid jumpi
+
+    endcall:
+        0x00 0x00 revert
+
+    sendBatchToken:
+        AIRDROP_ERC20()
+    
+    isListValid:
+        ARE_LISTS_VALID()
+}
 
 /*
  * ============================================================================
@@ -196,5 +224,119 @@
     //If same length, this is the jump destination. 
     Same_Length:
     //After jumping it makes logical sense to set up the transferfrom function, and save the neccessary argument we will need to call the function are well structured, and that we don't overburden the stack.
-    
+
+    //To structure the caldata, first we add the function signature to the position it should be in the stack.
+    //cast sig "transferFrom(msg.sender, address(this), amount)""
+    0x23b872dd 0x00 mstore             // [recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //Next we get the msg.sender argument by calling the opcode "caller", and storing at position 20 in memory
+    caller 0x20 mstore               // [recipient_one_pointer, loop_end, diff, token_address, total_amount] 
+
+    //Now, we add the address(this) to memory at position 0x40, by calling the "address" opcode, we get the "address(this)"
+    address 0x40 mstore               // [recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //Lastly we can add the total amount needed to be sent into the memory by calling "calldataload", we could have used swap, dup, swap. but this will scatter the stack and cost more gas.
+    [TOTAL_AMOUNT_OFFSET] calldataload 0x60 mstore
+
+
+    //Okay, it is time to transfer the token from the caller to the contract.
+
+    //first let us add some 0's to the down of the stack to use later.
+    0x00 0x00                   // [0, 0, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //Setting up the stack to get our bytes off the memory
+    0x64 [TWENTY_EIGHT]         //[28, 0x64, 0, 0, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    // Setup value & address of ERC20
+    0x00 [TOKEN_ADDRESS_OFFSET] calldataload  //[token_address, 0, 28, 0x64, 0, 0, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //Add the available gas and call the token contract
+    gas call                  //[success, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //if success is 1, jump to transfer success otherwise revert.
+    transfer_success jumpi   //[recipient_one_pointer, loop_end, diff, token_address, total_amount]
+    // cast sig Sagon__TransferFailed()
+    0x9b9a643c 0x00 mstore
+    0x04 [TWENTY_EIGHT] revert
+
+    transfer_succcess:
+ /* ============================================================================
+ * LOOP
+ * ============================================================================
+ */ 
+
+    //it make sense to distribute the token transfer to the address since it has now arrived safely
+    //First, let's setup the transfer function calldata.
+
+    //cast sig transfer(address,amount)
+    0xa9059cbb 0x00 mstore    //[recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //We are all setup to start distributing this token, so shall we?
+
+    loop:
+        //First of, we need our diff at the top of the stack, so lets dup3 it
+        dup3                   //[diff, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+        //we dup the recipient_one_pointer twice, to be at the top of the stack.
+        dup2 dup1             //[recipient_one_pointer, recipient_one_pointer, diff, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+        //Read the first 32 bytes from the pointer, that should be a recipient
+        calldataload         //[recipient, recipient_one_pointer, diff, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+        //Just like our reference, we have to ensure that the recipient is not address(0), if it is, we jump to revert
+        dup1 iszero is_zero_address jumpi
+
+        //To setup the transfer call, since we have already the function sig, the next thing to add to memory should be the recipient. 
+        [RECIPIENT_MEMORY_LOCATION] mstore          //[recipient_one_pointer, diff, recipient_one_pointer, loop_end, diff, token_address, total_amount]         
+
+        //Next let us get the respective amount from the call and add it to storage.
+        sub calldataload dup1 [AMOUNT_MEMORY_LOCATION] mstore   //[amount, recipient_one_pointer loop_end, diff, token_address, total_amount]
+
+        //Remember the initial amount, it is time to increment it by the amount.
+        dup6 add              //[new_total_amount, recipient_one_pointer loop_end, diff, token_address, total_amount]
+
+        //Next logical thing to do, is to swap the amounts and then pop off the old one
+        swap5 pop             //[recipient_one_pointer loop_end, diff, token_address, total_amount]
+
+        //Set up the other parameters needed for the "call" opcode and call.
+        0x00 0x00 0x44 [TWENTY_EIGHT] 0x00 dup9 gas call   //[success, recipient_one_pointer loop_end, diff, token_address, total_amount]
+
+        //As usually, jump if the call is successful and don't jump if otherwise.
+        loop_transfer_success jumpi         //[recipient_one_pointer loop_end, diff, token_address, total_amount]
+        // cast sig Sagon__TransferFailed()
+        0x9b9a643c 0x00 mstore
+        0x04 [TWENTY_EIGHT] revert
+
+        loop_transfer_success:
+        //Now, if we reached here, it means that transfer is successful. The next logical thing is to adjust the parameter for the next loop.
+
+        //To adjust, we need to increment the recipient pointer by 32 bytes again, so we can go to the next address
+        0x20 add              //[recipient_one_pointer loop_end, diff, token_address, total_amount]
+
+        //How do we loop? and how do we stop the loop. One way to stop the loop is to compare the current recipient_one_pointer to our loop_end. But first let's duplicate them so that we will have it for our next loop.
+        dup2 dup2            //[recipient_one_pointer loop_end, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+        lt                   //[less_than?, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+        //if it is less than, can we jump to the beginning of the loop again
+        loop jumpi           //[recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+
+    //let us see if the total matches at the end of the loop, first we load the total_amount sent
+    [TOTAL_AMOUNT_OFFSET] calldataload        //[total_amount_sent, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //Next we compare our total_Amount with our totalAmountSent to see if it is equal, if it isn't jump, but if it is return.
+    dup6 eq iszero unequal_total jumpi 
+    stop
+
+    unequal_total:
+        // cast sig "Sagon__unequalTotal()"
+        0xc2daccaa 0x00 mstore
+        0x04 [TWENTY_EIGHT] revert
+
+    is_zero_address:
+        // cast sig "Sagon__ZeroAddress()"
+        0x45c75a04 0x00 mstore 
+        0x04 [TWENTY_EIGHT] revert
+    stop
 }
+
