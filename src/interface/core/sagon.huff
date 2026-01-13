@@ -1,0 +1,201 @@
+/* Interface */
+#define function sendBatchToken(address,address[],uint256[],uint256) nonpayable returns()
+#define function isListValid(address[],uint256[]) pure returns (bool)
+
+/* Calldata Offsets */
+#define constant TOKEN_ADDRESS_OFFSET = 0x04
+#define constant NUMBER_OF_RECIPIENTS_POINTER_OFFSET = 0x24
+#define constant NUMBER_OF_AMOUNTS_POINTER_OFFSET = 0x44
+#define constant TOTAL_AMOUNT_OFFSET = 0x64
+
+/* Constants */ 
+#define constant TWENTY_EIGHT = 0x1c
+
+/* Macros */
+
+/*
+ * ============================================================================
+ * CALLDATA STRUCTURE WITH DYNAMIC TYPING
+ * ============================================================================
+ * 
+ * Function Signature: sendBatchToken(address,address[],uint256[],uint256)
+ * Function Selector:0xcc0e7976 (first 4 bytes of signature)
+ *
+ * ============================================================================
+ * What are static and dynamic types?
+ * ============================================================================
+ * The way and manner static and dynamic types are stored is different, while stypic types
+ * are stored directly, only the pointers of dynamic types are stored in the first set of bytes.
+ *
+ * Static Types (fixed size, stored directly):
+ *   - address, uint256, bool, bytes32
+ *   - Always 32 bytes (0x20) in calldata
+ *   - Value are stored directly in parameter slot
+ *
+ * Dynamic Types (variable size, stored via their pointer):
+ *   - arrays (address[], uint256[]), bytes, string
+ *   - Parameter slot only contains the pointer to the actual data and not the data itself.
+ *   - The actual data are stored elsewhere after the regular length of the calldata: [length][element_0]  [element_1]...
+ *
+ * ============================================================================
+ * CallData Layout (with function selector pointer)
+ * ============================================================================
+ * 
+ * Calldata positions are 0x20 (32 bytes) apart, starting at 0x04 (after selector).
+ * 
+ * Below is a quick sample structue of the calldata
+ * 
+ * Position | Size    | Content                     | Type
+ * ---------|---------|-----------------------------|--------------------------
+ * 0x00     | 4 bytes | 0x82947abe                  | Function selector
+ * 0x04     | 32 bytes| tokenAddress                | static (actual value)
+ * 0x24     | 32 bytes| 0x0080 (offset)             | dynamic (pointer to recipients)
+ * 0x44     | 32 bytes| 0x00c0 (offset)             | dynamic (pointer to amounts)
+ * 0x64     | 32 bytes| totalAmount                 | static (actual value)
+ * ---------|---------|-----------------------------|--------------------------
+ * 0x84     | 32 bytes| recipients.length           |  offset 0x80 + 0x04 points here
+ * 0xa4     | 32 bytes| recipients[0]               |
+ * 0xc4     | 32 bytes| recipients[1]               | 
+ * ...      | ...     | ...                         |
+ * ---------|---------|-----------------------------|--------------------------
+ * 0xc4     | 32 bytes| amounts.length              |  offset 0xc0 + 0x04 points here
+ * 0xe4     | 32 bytes| amounts[0]                  |
+ * 0x104    | 32 bytes| amounts[1]                  |
+ * ...      | ...     | ...                         |
+ *
+ * ============================================================================
+ * HOW TO READ CALLDATA
+ * ============================================================================
+ * 
+ * For STATIC types:
+ *   calldataload(0x04)  -> Gets tokenAddress directly
+ *   calldataload(0x64)  -> Gets totalAmount directly
+ * 
+ * For DYNAMIC types (it is a two step process):
+ *   Step 1: Load the pointer
+ *     calldataload(0x24)  -> Returns 0x0080 (pointer value)
+ *   
+ *   Step 2: Follow the pointer to get actual data
+ *     calldataload(0x80 + 0x04)  -> Gets recipients.length
+ *     Note: Add 0x04 to account for function selector
+ * 
+ * To access array elements:
+ *   recipients[i] location = base_poin + 0x20 + (i * 0x20)
+ *     - base_offset: Where the array starts (e.g., 0x84)
+ *     - 0x20: Skip the length field
+ *     - (i * 0x20): Each element is 32 bytes apart
+ *
+ * ============================================================================
+ * Example Calldata (with 1 recipient and 1 amount argument)
+ * ============================================================================
+ * 
+ * cast calldata "sendBatchToken(address,address[],uint256[],uint256)" \
+ *   0xcc0e7976 [0xcc0e7976] [77] 77
+ * 
+ * Generated calldata:
+ * 0xcc0e7976                                                             // selector
+ * 00000000000000000000000000000000000000000000000000000000075bcd15       // tokenAddress
+ * 0000000000000000000000000000000000000000000000000000000000000080       // offset to recipients (128)
+ * 00000000000000000000000000000000000000000000000000000000000000c0       // offset to amounts (192)
+ * 000000000000000000000000000000000000000000000000000000000000004d       // totalAmount (77)
+ * 0000000000000000000000000000000000000000000000000000000000000001       // recipients.length (1)
+ * 0000000000000000000000000000000000000000000000000000000000bc610a       // recipients[0]
+ * 0000000000000000000000000000000000000000000000000000000000000001       // amounts.length (1)
+ * 000000000000000000000000000000000000000000000000000000000000004d       // amounts[0] (77)
+ *
+ * ============================================================================
+ * Why do we use pointer for dynamic types?
+ * ============================================================================
+ * 
+ * pointers allow flexible data structures:
+ *   Arrays can be any length without breaking parameter alignment
+ *   Easy to skip to specific parameters without parsing all data
+ *   it enables efficient ABI encoding/decoding
+ *   Multiple dynamic types can coexist in same function
+ * 
+ * Without the pointer, you'd need to parse it sequentially which is complex.
+ * 
+ * ============================================================================
+ */
+#define macro SEND_BATCH_TOKEN() = takes (0) returns (0) {
+    /* As we go further, I will try my best  to explain each part of the code, for reference of the opcodes used, check here https://www.evm.codes/ */
+
+    //First part, since we will be looping through, and summing up the amount as we go, we need to initialize the total amount variable and leave it at the bottom of the stack.
+    0x00                                            //[total_Amount]
+
+    //Next, we have to load the calldata and get the token address sent by calling the "calldataLoad" opcode, it takes one input from the stack, which is the offset(where to start reading from), since the token address is immediately after the function selector which is 4 bytes, it makes sense to start reading from there.
+    [TOKEN_ADDRESS_OFFSET] calldataload             //[token_address, total_Amount]
+
+    //Next, we have to load the recipient address pointer, still by calling the calldataload just like we did with the token_address_offset. Since the func_sig took 4 bytes, and the token_address_offset took 20 bytes, it makes sense to start reading from 0x24 position.
+    [NUMBER_OF_RECIPIENTS_POINTER_OFFSET] calldataload             //[recipient_pointer, token_address, total_Amount]
+
+    // The pointer value we just loaded is relative to the start of parameters (byte 4), not the start of calldata (byte 0). We add 0x04 to get the true absolute position where the array data lives. This is because the ABI specification measures offsets from the start of the encoded parameters (which begins after the 4-byte function selector). So we need to add 0x04 to convert this "ABI-relative offset" into the actual absolute position in calldata where we can read the array data. Thus we add 0x04 to it to get the true value.
+    0x04 add                          //[true_recipient_pointer, token_address, total_Amount]    
+
+    //We do the exact same thing for the amount param                  
+    [NUMBER_OF_AMOUNTS_POINTER_OFFSET] calldataload             //[amount_pointer, recipient_pointer, token_address, total_Amount]
+    0x04 add                          //[true_amount_pointer, true_recipient_pointer, token_address, total_Amount] 
+
+
+ /* ============================================================================
+ * LOOP SETUP
+ * ============================================================================
+ */
+
+    // Before entering the loop, we need to pre-compute three values that will be used throughout the iterations. First, we calculate "diff" - the distance in calldata between the recipients array and the amounts array. This is computed by subtracting amounts.offset from recipient_pointer (recipients_pointer - amount_pointer). We'll use diff later in the loop to quickly find the matching amount for each recipient without recalculating offsets every iteration. Next, we calculate "address_one_offset" by adding 0x20 to recipients_pointer. This gives us the position of the first actual recipient address in calldata, skipping past the recipients.length field. These stack manipulations (dup1, dup3, sub, swap2) arrange these computed values in the order we need them for the loop, keeping them accessible on the stack for efficient reuse.
+
+    //To get the first part which is the "diff", we can get it by subtracting the amount and recipient offset as we already know, but we would have to dup it as it will be useful later.
+    dup1 dup3 sub         // [diff, amount_pointer, recipients_pointer, token_address, total_amount] 
+
+    //Because we only need the diff for later, we push it down in the stack by swapping it
+    swap2                 // [recipients_pointer, amount_pointer, diff, token_address, total_amount] 
+
+    //We are aware that when storing an array in memory, the first 32 bytes stores the length of the array be fore the actual data itself, in order to offset for that we add 0x20 to the first recipient_pointer in the array.
+    dup1 0x20 add         // [recipient_one_pointer, recipients_pointer, amounts_pointer, diff, token_address, total_amount]
+
+
+    // Now we load recipients.length and compute "loop_end" - the position in calldata where the loop should stop. loop_end is calculated as address_one_offset + (recipients.length * 32), which gives us the position right after the last recipient address. We use left shift by 5 (shl 5) as a gas optimization for multiplying by 32, since 2^5 = 32. After computing loop_end, we rearrange the stack and load amounts.length, which we'll need next to verify that recipients_length equals amounts.length.
+
+    //To start we have to first get the recipient_pointer to be the offset of the next calldataload, so we can get the length of the recipients
+    dup2 calldataload     // [recipients.length, recipient_one_pointer, recipients_pointer, amount_pointer, diff, token_address, total_amount]    
+
+    //Like i mentioned earlier, we basically use this to get the total actual bytes the recipient array list occupies.
+    0x5 shl               // [recipients.length >> 5, recipient_one_pointer, recipient_pointer, amounts_pointer, diff, token_address, total_amount] 
+
+    //To get the exact last byte where the loop should end, we basically just get the beginning of the recipient pointer and add it to the total recipient array bytes.
+    dup2 add              // [loop_end, recipient_one_pointer, recipients_pointer, amounts_pointer, diff, token_address, total_amount]
+
+    //We basically just swap so the loop_end will be with the diff
+    swap3                 // [amounts_pointer, recipient_one_pointer, recipients_pointer, loop_end, diff, token_address, total_amount]   
+
+    //Next we get the array length of the amount by reading the first 32 bytes at amounts_pointer, which is the length.
+    calldataload          // [amounts.length, recipient_one_pointer, recipients_pointer, loop_end, diff, token_address, total_amount]   
+
+    //Before going on, we have to confirm if the length of the recipient and the length of the amount arrays are equal. if it is not revert please
+
+    //First, remove the amount.length from the top of the stack, so that we can bring recipient_pointer to the top of the stack
+    swap1                 // [recipient_one_pointer, amounts.length, recipients_pointer, loop_end, diff, token_address, total_amount]  
+
+    //Next, we bring the recipient pointer to the top of the stack 
+    swap2                 // [recipients_pointer, amounts.length, recipient_one_pointer, loop_end, diff, token_address, total_amount]  
+
+    //Get the recipient length
+    calldataload          // [recipients.length, amounts.length, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //check if the lengths are equal, return 1 if true
+    eq                   // [amounts.length == recipients.length, recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //if length match, we can jump. if it doesn't then we revert with custom error
+    same_Length jumpi        // [recipient_one_pointer, loop_end, diff, token_address, total_amount]
+
+    //Store the revert message at the 0 position in memory and then revert, but then only read the last 4 bytes in the 32 bytes. so the offset will be be position 28 and size will be 4.
+    // cast sig Sagon__LengthMismatch()
+    0x638ed181 0x00 mstore
+    0x04 [TWENTY_EIGHT] revert
+
+    //If same length, this is the jump destination. 
+    Same_Length:
+    //After jumping it makes logical sense to set up the transferfrom function, and save the neccessary argument we will need to call the function are well structured, and that we don't overburden the stack.
+    
+
+}
