@@ -25,6 +25,11 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Install Huff
+        run: |
+          curl -L https://get.huff.sh | bash
+          echo "$HOME/.huff/bin" >> $GITHUB_PATH
+
       - name: Show Forge version
         run: forge --version
 
