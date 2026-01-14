@@ -25,10 +25,20 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Install Huff
-        run: |
-          curl -L https://get.huff.sh | bash
-          echo "$HOME/.huff/bin" >> $GITHUB_PATH
+      - name: Huff tests
+        on: [push]
+        jobs:
+          tests:
+            name: Tests with Huff
+            runs-on: ubuntu-latest
+            steps:
+            - name: Run Huff Tests
+              uses: huff-language/huff-tests-action@v3
+              with:
+              # Below arguments are optional:
+              with-location: "tests" # Defaults to "src"
+              with-extension: "*.t.huff" # Defaults to "*.t.huff*"
+              with-format: "table" # Defaults to "list"
 
       - name: Show Forge version
         run: forge --version
