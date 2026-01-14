@@ -25,6 +25,12 @@ contract Sagon {
         uint256 expectedTotal
     ) public {
         assembly {
+            //check address tokenToSend is not zero address
+            if iszero(tokenToSend) {
+                mstore(0x00, 0xd773faf9) // cast sig "Sagon__ZeroAddressForToken()"
+                revert(0x1c, 0x04)
+            }
+
             // check for equal lengths
             if iszero(eq(recipients.length, amounts.length)) {
                 mstore(0x00, 0x638ed181) // cast sig "Sagon__LengthMismatch()"
@@ -77,7 +83,7 @@ contract Sagon {
 
                 // transfer the tokens
                 if iszero(call(gas(), tokenToSend, 0, 0x00, 0x44, 0, 0)) {
-                    mstore(0x00, 0x9b9a643c) // cast sig "TSender__TransferFailed()"
+                    mstore(0x00, 0x9b9a643c) // cast sig "Sagon__TransferFailed()"
                     revert(0x1c, 0x04)
                 }
 

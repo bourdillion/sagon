@@ -1,3 +1,5 @@
+
+
 /* Interface */
 #define function sendBatchToken(address,address[],uint256[],uint256) nonpayable returns()
 #define function isListValid(address[],uint256[]) pure returns (bool)
@@ -33,7 +35,7 @@
 
     //We could have dup instead of getting it again, but this is cheaper gas wise
     0x00 calldataload 0xE0 shr 
-    __FUNC_SIG(isListValid) eq isListValid jumpi
+    __FUNC_SIG(isListValid) eq isListsValid jumpi
 
     endcall:
         0x00 0x00 revert
@@ -218,7 +220,7 @@
     eq                   // [amounts.length == recipients.length, recipient_one_pointer, loop_end, diff, token_address, total_amount]
 
     //if length match, we can jump. if it doesn't then we revert with custom error
-    Same_Length jumpi        // [recipient_one_pointer, loop_end, diff, token_address, total_amount]
+    same_Length jumpi        // [recipient_one_pointer, loop_end, diff, token_address, total_amount]
 
     //Store the revert message at the 0 position in memory and then revert, but then only read the last 4 bytes in the 32 bytes. so the offset will be be position 28 and size will be 4.
     // cast sig Sagon__LengthMismatch()
@@ -253,12 +255,6 @@
 
     // Setup value & address of ERC20
     0x00 [TOKEN_ADDRESS_OFFSET] calldataload  //[token_address, 0, 28, 0x64, 0, 0, recipient_one_pointer, loop_end, diff, token_address, total_amount]
-    dup1 iszero iszero not_iszero jumpi
-    // cast sig "Sagon__ZeroAddressForToken()"
-    0xd773faf9 0x00 mstore
-    0x04 [TWENTY_EIGHT] revert
-
-    not_iszero:                    
 
     //Add the available gas and call the token contract
     gas call                  //[success, recipient_one_pointer, loop_end, diff, token_address, total_amount]
@@ -269,7 +265,7 @@
     0x9b9a643c 0x00 mstore
     0x04 [TWENTY_EIGHT] revert
 
-    transfer_success:
+    transfer_succcess:
  /* ============================================================================
  * LOOP
  * ============================================================================
@@ -339,13 +335,13 @@
     stop
 
     unequal_total:
-        // cast sig "Sagon__AmountsMismatch()"
-        0xc6a7838d 0x00 mstore
+        // cast sig "Sagon__unequalTotal()"
+        0xc2daccaa 0x00 mstore
         0x04 [TWENTY_EIGHT] revert
 
     is_zero_address:
-        // cast sig "Sagon__ZeroInputsNotAllowed()"
-        0xb6aff06b 0x00 mstore 
+        // cast sig "Sagon__ZeroAddress()"
+        0x45c75a04 0x00 mstore 
         0x04 [TWENTY_EIGHT] revert
     stop
 }
@@ -408,7 +404,7 @@
             // Compare addresses
             dup1                           // [inner_loop_count, inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]
             0x20 mul                       // [inner_loop_count * 32, inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]   
-            [RECIPIENTS_POINTER_OFFSET] calldataload 0x24 add add       // [inner_loop_address_offset, inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]   
+            [RECIPIENTS_OFFSET_OFFSET] calldataload 0x24 add add       // [inner_loop_address_offset, inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]   
             calldataload                   // [inner_loop_address, inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]
             dup3                           // [outer_loop_address, inner_loop_address, inner_loop_count, outer_loop_address, outer_loop_count, recipients.length]
             // We could obviously combine these next two jumps into one for gas optimization
