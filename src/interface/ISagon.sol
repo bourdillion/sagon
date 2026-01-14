@@ -7,12 +7,12 @@ pragma solidity 0.8.30;
  */
 interface ISagon {
     //ERRORS
-    error Sagon__ZeroInputsNotAllowed();
-    error Sagon__ZeroTotalAmountNotAllowed();
-    error Sagon__ZeroAddressForToken();
-    error Sagon__TransferFailed();
-    error Sagon__AmountsMismatch();
-    error Sagon__LengthMismatch();
+    error Sagon__ZeroInputsNotAllowed(); //0xb6aff06b
+    error Sagon__ZeroTotalAmountNotAllowed(); //0x5c50c3ea
+    error Sagon__ZeroAddressForToken(); //0xd773faf9
+    error Sagon__TransferFailed(); //0x9b9a643c
+    error Sagon__AmountsMismatch(); //0xc6a7838d
+    error Sagon__LengthMismatch(); //0x638ed181
 
     //EVENTS
     event TokensDistributed(address indexed tokenToSend, uint256 indexed totalAmountSent, address sender);
