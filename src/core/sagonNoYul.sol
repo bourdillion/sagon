@@ -29,6 +29,7 @@ contract SagonNoYul is ISagon {
     ) public {
         if (tokenToSend == address(0)) revert Sagon__ZeroAddressForToken();
         if (expectedTotal == 0) revert Sagon__ZeroTotalAmountNotAllowed();
+        if (recipients.length != amounts.length) revert Sagon__LengthMismatch();
         bool isValid = isListValid(recipients, amounts);
         if (!isValid) revert Sagon__ZeroInputsNotAllowed();
         uint256 actualTotal;
@@ -53,10 +54,6 @@ contract SagonNoYul is ISagon {
      */
     function isListValid(address[] calldata recipients, uint256[] calldata amounts) public pure returns (bool) {
         if (amounts.length == 0) {
-            return false;
-        }
-
-        if (recipients.length != amounts.length) {
             return false;
         }
 
