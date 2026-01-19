@@ -19,4 +19,6 @@ contract DeploySagonHuff is Script {
         ISagon sagonHuff = ISagon(config.deploy(HUFF_VERSION_LOCATION));
         console.log("SagonHuff contract deployed at:", address(sagonHuff));
     }
+
+    //added huff contract deployment here
 }
