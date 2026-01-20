@@ -6,14 +6,13 @@
 ![License](https://img.shields.io/github/license/bourdillion/sagon)
 
 ## About Sagon 
-Sagon brings a cheap, easy and efficient way of batch-sending a token to multiple addresses at a go. It is a single-page application where users can come, enter in the addresses of the account to send money to and the equivalent amount, and simply hit send. The core of the protocol is written in pure huff language designed to make it much more cheaper to send transactions. Users also have the option of paying for gas fees in another accepted token instead of eth.
+Sagon is a gas-efficient smart contract protocol designed for batch distribution of ERC20 tokens in a single transaction, while giving users the option to pay gas fees with tokens. 
 
 ## Resources
 
 * [Website](https://sagon.tech) - Visit the website to experience Sagon as a user.
 * [Documentation](https:/sagon.tech) - Read the Sagon docs for a more indepth explanation.
 * [Audits](https:/sagon.tech) - Read a mini audit report here.
-
 
 
 
