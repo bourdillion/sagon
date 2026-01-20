@@ -1,66 +1,64 @@
-## Foundry
+# Sagon Protocol
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+![Stars](https://img.shields.io/github/stars/bourdillion/sagon)
+![Contributors](https://img.shields.io/github/contributors/bourdillion/sagon?color=brightgreen)
+![Issues](https://img.shields.io/github/issues/bourdillion/sagon)
+![License](https://img.shields.io/github/license/bourdillion/sagon)
 
-Foundry consists of:
+## About Sagon 
+Sagon brings a cheap, easy and efficient way of batch-sending a token to multiple addresses at a go. It is a single-page application where users can come, enter in the addresses of the account to send money to and the equivalent amount, and simply hit send. The core of the protocol is written in pure huff language designed to make it much more cheaper to send transactions. Users also have the option of paying for gas fees in another accepted token instead of eth.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Resources
 
-## Documentation
+* [Website](https://sagon.tech) - Visit the website to experience Sagon as a user.
+* [Documentation](https:/sagon.tech) - Read the Sagon docs for a more indepth explanation.
+* [Audits](https:/sagon.tech) - Read a mini audit report here.
 
-https://book.getfoundry.sh/
 
-## Usage
 
-### Build
 
-```shell
-$ forge build
+## Overview
+This repository holds the smart contract logic for the pilot version of the Sagon protocol. The logic of the contract is written in huff, Assembly(yul) and solidity for reference. Users have the option to switch between using the contract written in huff, yul and solidity. The repository contains logic to batch send tokens, and also to check if the list of addresses with their amounts are correct.
+
+## Dependencies
+
+The smart contracts in this repository import code from:
+1. [Forge-std](https://github.com/foundry-rs/forge-std)
+2. [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts)
+3. [Foundry-huff](https://github.com/huff-language/foundry-huff.git)
+
+To check version of the dependencies, use `git submodule status`.
+
+## Setup
+
+#### Make sure to have foundry installed
+``` javascript
+    curl -L https://foundry.paradigm.xyz | bash
+    foundryup
 ```
 
-### Test
+#### Verify installation:
+` forge --version`
 
-```shell
-$ forge test
+#### Clone the Repository
+```
+    git clone https://github.com/bourdillion/sagon.git
+    cd sagon
 ```
 
-### Format
+#### Install Dependencies
+`forge install`
 
-```shell
-$ forge fmt
-```
+#### Build the contracts
+`forge build`
 
-### Gas Snapshots
+#### Run all tests
+`forge test`
 
-```shell
-$ forge snapshot
-```
+#### Run a specific test
+`forge test --mt <test_name>`
 
-### Anvil
+## Audit Report
+Audits are currently in progress, will be updated soon.
 
-```shell
-$ anvil
-```
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
