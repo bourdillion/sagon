@@ -11,7 +11,7 @@ Sagon is a gas-efficient smart contract protocol designed for batch distribution
 ## Resources
 
 * [Website](https://sagon.tech) - Visit the website to experience Sagon as a user.
-* [Documentation](https:/sagon.tech) - Read the Sagon docs for a more indepth explanation.
+* [Documentation](https://docs.google.com/document/d/1WYZPRIs436OPDQzJhuvYD1RKu-QMsr3CPpMvzjShlIg/edit?usp=sharing) - Read the Sagon docs for a more indepth explanation.
 * [Audits](https:/sagon.tech) - Read a mini audit report here.
 
 
