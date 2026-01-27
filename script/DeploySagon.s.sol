@@ -11,10 +11,16 @@ contract DeploySagon is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerKey);
-        ISagon sagonSol = ISagon(address(new SagonNoYul()));
-        ISagon sagonAssembly = ISagon(address(new Sagon()));
+
+        SagonNoYul sagonNoYul = new SagonNoYul();
+        Sagon sagon = new Sagon();
+
+        ISagon sagonSol = ISagon(address(sagonNoYul));
+        ISagon sagonAssembly = ISagon(address(sagon));
+
         console.log("SagonPureSolidity contract deployed at:", address(sagonSol));
         console.log("SagonAssembly contract deployed at:", address(sagonAssembly));
+
         vm.stopBroadcast();
     }
 }

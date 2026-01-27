@@ -15,9 +15,12 @@ contract DeploySagonHuff is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         // Deploy a HuffConfig instance directly to avoid delegatecalling an undeployed library
-        HuffConfig config = new HuffConfig();
-        ISagon sagonHuff = ISagon(config.deploy(HUFF_VERSION_LOCATION));
-        console.log("SagonHuff contract deployed at:", address(sagonHuff));
+        HuffConfig config = HuffDeployer.config();
+        address sagonHuff = config.deploy(HUFF_VERSION_LOCATION);
+        // vm.startBroadcast(deployerKey);
+
+        // vm.stopBroadcast();
+        console.log("SagonHuff contract deployed at:", sagonHuff);
     }
 
     //added huff contract deployment here
